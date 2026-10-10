@@ -23,6 +23,16 @@ class TokenChunker(Chunker):
         **kwargs: Any,
     ) -> None:
         """Create a token chunker instance."""
+        if size <= 0:
+            msg = "chunk size must be greater than 0"
+            raise ValueError(msg)
+        if overlap < 0:
+            msg = "chunk overlap must be greater than or equal to 0"
+            raise ValueError(msg)
+        if overlap >= size:
+            msg = "chunk overlap must be less than chunk size"
+            raise ValueError(msg)
+
         self._size = size
         self._overlap = overlap
         self._encode = encode
@@ -50,6 +60,16 @@ def split_text_on_tokens(
     decode: Callable[[list[int]], str],
 ) -> list[str]:
     """Split a single text and return chunks using the tokenizer."""
+    if chunk_size <= 0:
+        msg = "chunk size must be greater than 0"
+        raise ValueError(msg)
+    if chunk_overlap < 0:
+        msg = "chunk overlap must be greater than or equal to 0"
+        raise ValueError(msg)
+    if chunk_overlap >= chunk_size:
+        msg = "chunk overlap must be less than chunk size"
+        raise ValueError(msg)
+
     result = []
     input_tokens = encode(text)
 

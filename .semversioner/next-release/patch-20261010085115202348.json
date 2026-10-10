@@ -1,0 +1,4 @@
+{
+  "type": "patch",
+  "description": "Validate chunk size and overlap in TokenChunker and ChunkingConfig to prevent infinite loop."
+}

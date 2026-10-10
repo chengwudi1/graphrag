@@ -4,15 +4,18 @@
 from typing import Any
 from unittest.mock import Mock, patch
 
+import pytest
 from graphrag.tokenizer.get_tokenizer import get_tokenizer
 from graphrag_chunking.bootstrap_nltk import bootstrap
 from graphrag_chunking.chunk_strategy_type import ChunkerType
 from graphrag_chunking.chunker_factory import create_chunker
 from graphrag_chunking.chunking_config import ChunkingConfig
 from graphrag_chunking.token_chunker import (
+    TokenChunker,
     split_text_on_tokens,
 )
 from graphrag_llm.tokenizer import Tokenizer
+from pydantic import ValidationError
 
 
 class MockTokenizer(Tokenizer):
@@ -188,3 +191,107 @@ def test_split_text_on_tokens_no_overlap():
     )
 
     assert result == expected_splits
+
+
+def test_token_chunker_invalid_size():
+    mocked_tokenizer = MockTokenizer()
+    with pytest.raises(ValueError, match="chunk size must be greater than 0"):
+        TokenChunker(
+            size=0,
+            overlap=0,
+            encode=mocked_tokenizer.encode,
+            decode=mocked_tokenizer.decode,
+        )
+    with pytest.raises(ValueError, match="chunk size must be greater than 0"):
+        TokenChunker(
+            size=-5,
+            overlap=0,
+            encode=mocked_tokenizer.encode,
+            decode=mocked_tokenizer.decode,
+        )
+
+
+def test_token_chunker_invalid_overlap():
+    mocked_tokenizer = MockTokenizer()
+    with pytest.raises(
+        ValueError, match="chunk overlap must be greater than or equal to 0"
+    ):
+        TokenChunker(
+            size=10,
+            overlap=-1,
+            encode=mocked_tokenizer.encode,
+            decode=mocked_tokenizer.decode,
+        )
+    with pytest.raises(ValueError, match="chunk overlap must be less than chunk size"):
+        TokenChunker(
+            size=10,
+            overlap=10,
+            encode=mocked_tokenizer.encode,
+            decode=mocked_tokenizer.decode,
+        )
+    with pytest.raises(ValueError, match="chunk overlap must be less than chunk size"):
+        TokenChunker(
+            size=10,
+            overlap=15,
+            encode=mocked_tokenizer.encode,
+            decode=mocked_tokenizer.decode,
+        )
+
+
+def test_split_text_on_tokens_validation():
+    mocked_tokenizer = MockTokenizer()
+    with pytest.raises(ValueError, match="chunk size must be greater than 0"):
+        split_text_on_tokens(
+            text="test",
+            chunk_size=0,
+            chunk_overlap=0,
+            encode=mocked_tokenizer.encode,
+            decode=mocked_tokenizer.decode,
+        )
+
+    with pytest.raises(
+        ValueError, match="chunk overlap must be greater than or equal to 0"
+    ):
+        split_text_on_tokens(
+            text="test",
+            chunk_size=10,
+            chunk_overlap=-1,
+            encode=mocked_tokenizer.encode,
+            decode=mocked_tokenizer.decode,
+        )
+
+    with pytest.raises(ValueError, match="chunk overlap must be less than chunk size"):
+        split_text_on_tokens(
+            text="test",
+            chunk_size=10,
+            chunk_overlap=10,
+            encode=mocked_tokenizer.encode,
+            decode=mocked_tokenizer.decode,
+        )
+
+    with pytest.raises(ValueError, match="chunk overlap must be less than chunk size"):
+        split_text_on_tokens(
+            text="test",
+            chunk_size=10,
+            chunk_overlap=15,
+            encode=mocked_tokenizer.encode,
+            decode=mocked_tokenizer.decode,
+        )
+
+
+def test_chunking_config_validation():
+    with pytest.raises(ValidationError):
+        ChunkingConfig(size=0, overlap=0)
+
+    with pytest.raises(ValidationError):
+        ChunkingConfig(size=10, overlap=-1)
+
+    with pytest.raises(ValidationError):
+        ChunkingConfig(size=10, overlap=10)
+
+    with pytest.raises(ValidationError):
+        ChunkingConfig(size=10, overlap=15)
+
+    valid_config = ChunkingConfig(size=10, overlap=5)
+    assert valid_config.size == 10
+    assert valid_config.overlap == 5
